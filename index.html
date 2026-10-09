@@ -740,7 +740,7 @@ var DEMO = (function () {
       { id: 'm2', from: 'Sana Malik', subject: 'Demo dates', date: addDays(k.day, -1) + 'T17:40:00', unread: true, starred: true, snippet: 'Our HR head is free next week, which slots work for you?', link: 'https://mail.google.com/' }
     ];
     return { version: 'demo', tz: 'Asia/Karachi', now: nowIso(), keys: k, items: items, repository: repo, repositoryHeader: S.repoHeader.slice(),
-      settings: { geminiModel: 'gemini-flash-latest', userName: 'Haseeb', assistantName: 'Go', language: 'auto', mailLookbackDays: '7', calendarDays: '7', hasGeminiKey: false, geminiKeyMasked: '' },
+      settings: { geminiModel: 'gemini-flash-latest', userName: 'Haseeb', assistantName: 'Go', language: 'auto', mailLookbackDays: '7', calendarDays: '7', hasGeminiKey: false, geminiKeyMasked: '', provider: 'gemini', aiReady: false },
       calendar: { today: cal.filter(function (e) { return e.day === k.day; }), week: cal, all: cal, error: '' }, mail: mail, mailError: '', drive: [{ name: 'Nishat S4 proposal v3.docx', type: 'document', url: '#', updated: nowIso() }], driveError: '', sheetUrl: '#', ms: 1 };
   }
   function wait(x) { return new Promise(function (r) { setTimeout(function () { r(x); }, 120); }); }
@@ -757,7 +757,7 @@ var DEMO = (function () {
         case 'updateRecord': { var r = st.repository.filter(function (x) { return x.Name === p.name; })[0]; if (r) Object.assign(r, p.patch); return wait({ row: r, header: st.repositoryHeader }); }
         case 'deleteRecord': st.repository = st.repository.filter(function (x) { return x.Name !== p.name; }); return wait({ removed: 1 });
         case 'getSettings': return wait(st.settings);
-        case 'saveSettings': Object.assign(st.settings, p.settings); if (p.settings.geminiKey) { st.settings.hasGeminiKey = true; st.settings.geminiKeyMasked = '••••' + p.settings.geminiKey.slice(-4); } delete st.settings.geminiKey; return wait(st.settings);
+        case 'saveSettings': Object.assign(st.settings, p.settings); if (p.settings.geminiKey) { st.settings.hasGeminiKey = true; st.settings.geminiKeyMasked = '••••' + p.settings.geminiKey.slice(-4); } if (p.settings.llmKey) { st.settings.hasLlmKey = true; st.settings.llmKeyMasked = '••••' + p.settings.llmKey.slice(-4); } st.settings.aiReady = st.settings.provider === 'openai' ? !!st.settings.hasLlmKey : !!st.settings.hasGeminiKey; delete st.settings.geminiKey; delete st.settings.llmKey; return wait(st.settings);
         case 'ask': return wait({ text: 'Demo mode mein hoon bhai — Gemini yahan connected nahi. Deploy karo, key dalo, phir asli scene. 😄', actions: [] });
         case 'importPlan': return wait({ items: heuristicImport(p.text), via: 'heuristic' });
         case 'selfCheck': return wait({ summary: 'Demo mode: nothing to check.', checks: [{ name: 'Demo mode', ok: true, detail: 'Running without a script. Deploy to connect.' }] });
@@ -1033,9 +1033,16 @@ function renderRecForm(r) {
 function renderSettings() {
   var s = S.settings, hosted = !API.isGs();
   var speech = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+  var openai = s.provider === 'openai';
   var html = '<div class="srows">' +
-    '<label>Gemini API key<div class="r"><input id="set-key" data-draft type="password" placeholder="' + (s.hasGeminiKey ? 'Saved (' + esc(s.geminiKeyMasked) + ') — paste a new key to replace' : 'Paste your key from aistudio.google.com') + '" autocomplete="off"></div><span class="tiny">Stays in the sheet. Never sent to the browser.</span></label>' +
-    '<label>Gemini model<input id="set-model" data-draft value="' + esc(s.geminiModel || 'gemini-flash-latest') + '"></label>' +
+    '<label>AI provider<select id="set-provider" data-act="provider"><option value="gemini"' + (openai ? '' : ' selected') + '>Google Gemini</option><option value="openai"' + (openai ? ' selected' : '') + '>Other (Groq, Cerebras, OpenRouter — OpenAI-compatible)</option></select></label>' +
+    (openai ?
+      '<label>Provider URL<input id="set-llmbase" data-draft value="' + esc(s.llmBase || 'https://api.groq.com/openai/v1') + '" placeholder="https://api.groq.com/openai/v1"><span class="tiny">Groq: https://api.groq.com/openai/v1 · Cerebras: https://api.cerebras.ai/v1 · OpenRouter: https://openrouter.ai/api/v1</span></label>' +
+      '<label>Provider API key<input id="set-llmkey" data-draft type="password" placeholder="' + (s.hasLlmKey ? 'Saved (' + esc(s.llmKeyMasked) + ') — paste a new key to replace' : 'Paste the key from the provider\'s console') + '" autocomplete="off"><span class="tiny">Stays in the sheet. Never sent to the browser.</span></label>' +
+      '<label>Model<input id="set-llmmodel" data-draft value="' + esc(s.llmModel || 'openai/gpt-oss-120b') + '"><span class="tiny">Run self-check to see the models your key can use.</span></label>'
+    :
+      '<label>Gemini API key<div class="r"><input id="set-key" data-draft type="password" placeholder="' + (s.hasGeminiKey ? 'Saved (' + esc(s.geminiKeyMasked) + ') — paste a new key to replace' : 'Paste your key from aistudio.google.com') + '" autocomplete="off"></div><span class="tiny">Stays in the sheet. Never sent to the browser.</span></label>' +
+      '<label>Gemini model<input id="set-model" data-draft value="' + esc(s.geminiModel || 'gemini-flash-latest') + '"><span class="tiny">If Flash is busy (503), try gemini-flash-lite-latest.</span></label>') +
     '<label>Your name<input id="set-name" data-draft value="' + esc(s.userName || '') + '" placeholder="So Go knows what to call you"></label>' +
     '<label>Assistant name<input id="set-aname" data-draft value="' + esc(s.assistantName || 'Go') + '"></label>' +
     '<label>Assistant language<select id="set-lang"><option value="auto"' + (s.language === 'auto' || !s.language ? ' selected' : '') + '>Match me (English / Roman Urdu / Urdu)</option><option value="en"' + (s.language === 'en' ? ' selected' : '') + '>English</option><option value="ur"' + (s.language === 'ur' ? ' selected' : '') + '>Urdu</option></select></label>' +
@@ -1218,7 +1225,7 @@ function sendMessage(text, mode, extra) {
   if (!text && mode === 'chat') return;
   if (S.busy) return;
   if (text) pushChat({ role: 'user', text: text });
-  if (!S.settings.hasGeminiKey && !API.isDemo()) { pushChat({ role: 'error', text: 'Add a Gemini key in Settings to talk to ' + (S.settings.assistantName || 'Go') + '.' }); return Promise.resolve(); }
+  if (!S.settings.aiReady && !API.isDemo()) { pushChat({ role: 'error', text: 'Add an AI key in Settings to talk to ' + (S.settings.assistantName || 'Go') + '.' }); return Promise.resolve(); }
   S.busy = true; renderChat();
   var history = S.chat.filter(function (m) { return m.role === 'user' || m.role === 'assistant'; }).slice(-12).map(function (m) { return { role: m.role, text: m.text }; });
   if (mode !== 'chat' && !text) history.push({ role: 'user', text: mode === 'plan' ? 'Plan this goal into steps.' : mode === 'suggest' ? 'Suggest items for ' + HLABEL[extra.horizon].toLowerCase() + '.' : 'Summarise ' + (extra.period || 'today') + '.' });
@@ -1406,7 +1413,7 @@ var ACT = {
     var inp = $('add-input'), text = inp.value.trim(); if (!text) { inp.focus(); return; }
     var it = addItem(text); inp.value = ''; inp.focus();
     toast('Added "' + text.slice(0, 40) + '"', function () { deleteItemUI(it.id); closeToast(); });
-    if (S.horizon !== 'day' && S.planSteps && (S.settings.hasGeminiKey || API.isDemo())) planGoal(it.id);
+    if (S.horizon !== 'day' && S.planSteps && (S.settings.aiReady || API.isDemo())) planGoal(it.id);
   },
   toggle: function (el) { var it = findItem(el.dataset.id); if (it) setDone(it.id, !it.done); },
   menu: function (el) { S.openItem = S.openItem === el.dataset.id ? null : el.dataset.id; render(); },
@@ -1419,8 +1426,8 @@ var ACT = {
   delete: function (el) { deleteItemUI(el.dataset.id); },
   'carry-move': function (el) { var it = findItem(el.dataset.id); var before = updateItem(it.id, { period: S.keys[it.horizon], order: itemsOf(it.horizon, S.keys[it.horizon]).length + 1 }); toast('Moved to ' + HLABEL[it.horizon].toLowerCase(), function () { updateItem(it.id, before); }); },
   'carry-done': function (el) { setDone(el.dataset.id, true); },
-  'plan-goal': function (el) { if (!S.settings.hasGeminiKey && !API.isDemo()) { toast('Add a Gemini key in Settings to plan steps.'); openSheet('sh-settings'); renderSettings(); return; } planGoal(el.dataset.id); },
-  suggest: function () { if (!S.settings.hasGeminiKey && !API.isDemo()) { toast('Add a Gemini key in Settings to get suggestions.'); openSheet('sh-settings'); renderSettings(); return; } openSheet('sh-assistant'); renderChat(); pushChat({ role: 'sys', text: 'Suggesting items for ' + HLABEL[S.horizon].toLowerCase() + '…' }); sendMessage('', 'suggest', { horizon: S.horizon }); },
+  'plan-goal': function (el) { if (!S.settings.aiReady && !API.isDemo()) { toast('Add an AI key in Settings to plan steps.'); openSheet('sh-settings'); renderSettings(); return; } planGoal(el.dataset.id); },
+  suggest: function () { if (!S.settings.aiReady && !API.isDemo()) { toast('Add an AI key in Settings to get suggestions.'); openSheet('sh-settings'); renderSettings(); return; } openSheet('sh-assistant'); renderChat(); pushChat({ role: 'sys', text: 'Suggesting items for ' + HLABEL[S.horizon].toLowerCase() + '…' }); sendMessage('', 'suggest', { horizon: S.horizon }); },
   'plan-event': function (el) { var it = addItem('Prepare for ' + el.dataset.title, 'day', { ref: el.dataset.title, source: 'calendar' }); toast('Added "' + it.text.slice(0, 40) + '"', function () { deleteItemUI(it.id); closeToast(); }); },
   'follow-mail': function (el) { var it = addItem('Follow up: ' + el.dataset.subject.replace(/^(re|fwd?):\s*/i, ''), 'day', { ref: el.dataset.from }); toast('Added "' + it.text.slice(0, 40) + '"', function () { deleteItemUI(it.id); closeToast(); }); },
   'rec-plan': function (el) { var r = recByName(el.dataset.name); var h = el.dataset.h || 'day'; var it = addItem((r && r.Type === 'Contact' ? 'Reach out to ' : 'Follow up on ') + el.dataset.name, h, { ref: el.dataset.name }); toast('Added to ' + HLABEL[h].toLowerCase(), function () { deleteItemUI(it.id); closeToast(); }); },
@@ -1428,11 +1435,14 @@ var ACT = {
   settings: function () { renderSettings(); openSheet('sh-settings'); },
   closeall: function () { closeSheets(); },
   savesettings: function () {
-    var obj = { geminiModel: $('set-model').value.trim(), userName: $('set-name').value.trim(), assistantName: $('set-aname').value.trim() || 'Go', language: $('set-lang').value, mailLookbackDays: $('set-mail').value.trim() || '7', calendarDays: $('set-cal').value.trim() || '7' };
-    var key = $('set-key').value.trim(); if (key) obj.geminiKey = key;
+    var obj = { provider: $('set-provider').value, userName: $('set-name').value.trim(), assistantName: $('set-aname').value.trim() || 'Go', language: $('set-lang').value, mailLookbackDays: $('set-mail').value.trim() || '7', calendarDays: $('set-cal').value.trim() || '7' };
+    if ($('set-model')) obj.geminiModel = $('set-model').value.trim();
+    if ($('set-key') && $('set-key').value.trim()) obj.geminiKey = $('set-key').value.trim();
+    if ($('set-llmbase')) { obj.llmBase = $('set-llmbase').value.trim(); obj.llmModel = $('set-llmmodel').value.trim(); if ($('set-llmkey').value.trim()) obj.llmKey = $('set-llmkey').value.trim(); }
     if ($('set-api')) localStorage.setItem(LS.api, $('set-api').value.trim());
     save('saveSettings', { settings: obj }).then(function (s) { S.settings = s; toast('Settings saved'); renderSettings(); render(); }).catch(function () { });
   },
+  provider: function (el) { S.settings.provider = el.value; renderSettings(); },
   connect: function () {
     var url = $('set-api').value.trim(); if (!url) { $('connect-status').textContent = 'Paste the /exec link first.'; return; }
     localStorage.setItem(LS.api, url); $('connect-status').textContent = 'Checking…';
