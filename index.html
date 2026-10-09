@@ -622,6 +622,7 @@ function esc(s) { return String(s === undefined || s === null ? '' : s).replace(
 </script>
 <script>
 /* ============================================================ State */
+var APP_VERSION = '1.1.0';
 var LS = { state: 'tmc_state_v1', api: 'tmc_api_url', chat: 'tmc_chat_v1', ui: 'tmc_ui_v1' };
 var S = {
   tab: 'plan', horizon: 'day', showDone: false, openItem: null, editItem: null, planSteps: true,
@@ -1051,7 +1052,7 @@ function renderSettings() {
     '<div class="r"><button class="btn primary" data-act="savesettings">Save settings</button><button class="btn" data-act="selfcheck">Run self-check</button></div>' +
     '<div id="selfcheck-out"></div>' +
     '<hr><div class="r"><button class="btn" data-act="backup">Export backup</button><button class="btn" data-act="restore">Import backup</button><input type="file" id="restore-file" accept="application/json" class="hide"><button class="btn danger" data-act="cleardemo">Clear demo data</button></div>' +
-    '<span class="tiny">' + (API.isGs() ? 'Running inside Apps Script' : API.isDemo() ? 'Demo mode (no script connected)' : 'Hosted mode') + ' · app ' + esc(S.version || '?') + ' · speech ' + (speech ? 'available' : 'not available in this browser') + ' · ' + agoText(S.lastSync) + '</span>' +
+    '<span class="tiny">' + (API.isGs() ? 'Running inside Apps Script' : API.isDemo() ? 'Demo mode (no script connected)' : 'Hosted mode') + ' · app ' + APP_VERSION + ' · script ' + esc(S.version || 'not connected') + ' · speech ' + (speech ? 'available' : 'not available in this browser') + ' · ' + agoText(S.lastSync) + '</span>' +
     '</div>';
   $('settings-body').innerHTML = html;
 }
