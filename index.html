@@ -740,7 +740,7 @@ var DEMO = (function () {
       { id: 'm2', from: 'Sana Malik', subject: 'Demo dates', date: addDays(k.day, -1) + 'T17:40:00', unread: true, starred: true, snippet: 'Our HR head is free next week, which slots work for you?', link: 'https://mail.google.com/' }
     ];
     return { version: 'demo', tz: 'Asia/Karachi', now: nowIso(), keys: k, items: items, repository: repo, repositoryHeader: S.repoHeader.slice(),
-      settings: { geminiModel: 'gemini-2.5-flash', userName: 'Haseeb', assistantName: 'Go', language: 'auto', mailLookbackDays: '7', calendarDays: '7', hasGeminiKey: false, geminiKeyMasked: '' },
+      settings: { geminiModel: 'gemini-flash-latest', userName: 'Haseeb', assistantName: 'Go', language: 'auto', mailLookbackDays: '7', calendarDays: '7', hasGeminiKey: false, geminiKeyMasked: '' },
       calendar: { today: cal.filter(function (e) { return e.day === k.day; }), week: cal, all: cal, error: '' }, mail: mail, mailError: '', drive: [{ name: 'Nishat S4 proposal v3.docx', type: 'document', url: '#', updated: nowIso() }], driveError: '', sheetUrl: '#', ms: 1 };
   }
   function wait(x) { return new Promise(function (r) { setTimeout(function () { r(x); }, 120); }); }
@@ -1035,7 +1035,7 @@ function renderSettings() {
   var speech = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
   var html = '<div class="srows">' +
     '<label>Gemini API key<div class="r"><input id="set-key" data-draft type="password" placeholder="' + (s.hasGeminiKey ? 'Saved (' + esc(s.geminiKeyMasked) + ') — paste a new key to replace' : 'Paste your key from aistudio.google.com') + '" autocomplete="off"></div><span class="tiny">Stays in the sheet. Never sent to the browser.</span></label>' +
-    '<label>Gemini model<input id="set-model" data-draft value="' + esc(s.geminiModel || 'gemini-2.5-flash') + '"></label>' +
+    '<label>Gemini model<input id="set-model" data-draft value="' + esc(s.geminiModel || 'gemini-flash-latest') + '"></label>' +
     '<label>Your name<input id="set-name" data-draft value="' + esc(s.userName || '') + '" placeholder="So Go knows what to call you"></label>' +
     '<label>Assistant name<input id="set-aname" data-draft value="' + esc(s.assistantName || 'Go') + '"></label>' +
     '<label>Assistant language<select id="set-lang"><option value="auto"' + (s.language === 'auto' || !s.language ? ' selected' : '') + '>Match me (English / Roman Urdu / Urdu)</option><option value="en"' + (s.language === 'en' ? ' selected' : '') + '>English</option><option value="ur"' + (s.language === 'ur' ? ' selected' : '') + '>Urdu</option></select></label>' +
