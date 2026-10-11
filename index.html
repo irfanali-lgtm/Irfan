@@ -65,7 +65,7 @@ hr{border:0;border-top:1px solid var(--line);margin:0}
 @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
 
 /* ---------- Layout ---------- */
-.app{max-width:1200px;margin:0 auto;padding:0 16px calc(84px + var(--sab))}
+.app{max-width:1480px;margin:0 auto;padding:0 16px calc(84px + var(--sab))}
 .col{max-width:var(--col);margin:0 auto}
 header.top{display:flex;align-items:center;justify-content:space-between;padding:14px 0 10px;gap:12px}
 .brand{display:flex;flex-direction:column;gap:2px;min-width:0}
@@ -81,7 +81,8 @@ nav.tabs button svg{width:22px;height:22px}
 nav.tabs button[aria-selected="true"]{color:var(--accent);font-weight:600}
 nav.tabs .topbar{display:none}
 @media (min-width:900px){
-  .app{padding-bottom:40px}
+  :root{--col:860px}
+  .app{padding-bottom:40px;padding-left:32px;padding-right:32px}
   header.top{padding:22px 0 8px;border-bottom:1px solid var(--line);margin-bottom:8px}
   nav.tabs{position:static;border:0;padding:0;background:transparent;display:flex;gap:4px;justify-content:center;margin:0 auto}
   nav.tabs button{flex:0 0 auto;flex-direction:row;gap:8px;min-height:44px;padding:0 16px;font-size:15px}
@@ -172,6 +173,13 @@ label.chk input{width:24px;height:24px;min-height:0;padding:0;margin:0;accent-co
 .carry{border-left:3px solid var(--line2);padding-left:12px;margin:4px 0 14px}
 .pill{display:inline-block;font-size:12px;padding:2px 8px;border-radius:999px;background:var(--accent-soft);color:var(--fg2);line-height:18px}
 .tag{font-size:12px;color:var(--muted);border:1px solid var(--line2);border-radius:4px;padding:0 5px;line-height:18px}
+@media (min-width:1200px){
+  :root{--col:1120px}
+  #v-plan[aria-hidden="false"]{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:0 56px;align-items:start}
+  .plan-side{position:sticky;top:12px}
+  .plan-side .block:first-child{margin-top:8px}
+  .dgrid{gap:0 56px}
+}
 .banner{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px;color:var(--fg2)}
 
 /* ---------- Dashboard ---------- */
@@ -622,7 +630,7 @@ function esc(s) { return String(s === undefined || s === null ? '' : s).replace(
 </script>
 <script>
 /* ============================================================ State */
-var APP_VERSION = '1.1.0';
+var APP_VERSION = '1.2.0';
 var LS = { state: 'tmc_state_v1', api: 'tmc_api_url', chat: 'tmc_chat_v1', ui: 'tmc_ui_v1' };
 var S = {
   tab: 'plan', horizon: 'day', showDone: false, openItem: null, editItem: null, planSteps: true,
@@ -818,7 +826,7 @@ function renderHeader() {
 function renderPlan() {
   var h = S.horizon, period = S.keys[h];
   var byId = byIdMap(), byParent = indexByParent(S.items);
-  var out = [];
+  var out = ['<div class="plan-main">'];
   if (S.error) out.push('<div class="banner"><span>' + esc(S.error) + '</span><button class="btn sm" data-act="refresh">Retry</button></div>');
   if (!API.isGs() && !API.isDemo() && !API.url()) out.push('<div class="banner"><span>Not connected to your sheet yet.</span><button class="btn sm primary" data-act="settings">Connect</button></div>');
   if (hasDemo()) out.push('<div class="banner"><span>You are looking at example data.</span><button class="btn sm" data-act="cleardemo">Clear demo data</button></div>');
@@ -850,6 +858,7 @@ function renderPlan() {
     list.forEach(function (it, i) { out.push(renderItem(it, byId, byParent, i, list.length)); });
     out.push('</ul>');
   }
+  out.push('</div><div class="plan-side">');
   // carried over
   var carried = S.items.filter(function (it) { return it.horizon === h && !it.done && isEarlier(h, it.period, period); }).sort(function (a, b) { return periodOrder(h, a.period) < periodOrder(h, b.period) ? -1 : 1; });
   if (carried.length) {
@@ -871,16 +880,17 @@ function renderPlan() {
       });
     } else if (!S.calendar.error) out.push('<div class="tiny" style="padding:4px 0 8px">No meetings today.</div>');
     out.push('</div>');
-    var mail = (S.mail || []).slice(0, 5);
+    var mail = (S.mail || []).slice().sort(function (a, b) { return (b.known ? 1 : 0) - (a.known ? 1 : 0); }).slice(0, 5);
     if (mail.length) {
       out.push('<div class="block"><h3>Mail worth a look <span class="tiny">unread or starred</span></h3>');
       mail.forEach(function (m) {
-        out.push('<div class="srow"><div class="t"><a href="' + esc(m.link) + '" target="_blank" rel="noopener">' + esc(m.subject) + '</a><span class="tiny">' + esc(m.from.replace(/<.*>/, '').trim()) + (m.snippet ? ' — ' + esc(m.snippet.slice(0, 70)) : '') + '</span></div><div class="acts"><button class="btn sm" data-act="follow-mail" data-subject="' + esc(m.subject) + '" data-from="' + esc(m.from.replace(/<.*>/, '').trim()) + '">+ Follow up</button></div></div>');
+        out.push('<div class="srow"><div class="t"><a href="' + esc(m.link) + '" target="_blank" rel="noopener">' + esc(m.subject) + '</a><span class="tiny">' + (m.known ? '<span class="pill">known</span> ' : '') + esc(m.from.replace(/<.*>/, '').trim()) + (m.snippet ? ' — ' + esc(m.snippet.slice(0, 70)) : '') + '</span></div><div class="acts"><button class="btn sm" data-act="follow-mail" data-subject="' + esc(m.subject) + '" data-from="' + esc(m.from.replace(/<.*>/, '').trim()) + '">+ Follow up</button></div></div>');
       });
       out.push('</div>');
     }
   }
 
+  out.push('</div>');
   $('v-plan').innerHTML = out.join('');
 }
 
@@ -1046,6 +1056,7 @@ function renderSettings() {
       '<label>Gemini model<input id="set-model" data-draft value="' + esc(s.geminiModel || 'gemini-flash-latest') + '"><span class="tiny">If Flash is busy (503), try gemini-flash-lite-latest.</span></label>') +
     '<label>Your name<input id="set-name" data-draft value="' + esc(s.userName || '') + '" placeholder="So Go knows what to call you"></label>' +
     '<label>Assistant name<input id="set-aname" data-draft value="' + esc(s.assistantName || 'Go') + '"></label>' +
+    '<label>Speech language (this device)<select id="set-speech">' + [['en-IN', 'English (India/Pakistan accent) — recommended'], ['en-US', 'English (US)'], ['en-GB', 'English (UK)'], ['ur-PK', 'Urdu'], ['hi-IN', 'Hindi/Urdu (Devanagari engine)']].map(function (o) { return '<option value="' + o[0] + '"' + ((localStorage.getItem('tmc_speech') || 'en-IN') === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select><span class="tiny">Used by the microphone and Live mode. Roman Urdu is recognised best with English (India).</span></label>' +
     '<label>Assistant language<select id="set-lang"><option value="auto"' + (s.language === 'auto' || !s.language ? ' selected' : '') + '>Match me (English / Roman Urdu / Urdu)</option><option value="en"' + (s.language === 'en' ? ' selected' : '') + '>English</option><option value="ur"' + (s.language === 'ur' ? ' selected' : '') + '>Urdu</option></select></label>' +
     '<div class="r"><label style="flex:1">Mail look-back (days)<input id="set-mail" data-draft inputmode="numeric" value="' + esc(s.mailLookbackDays || '7') + '"></label><label style="flex:1">Calendar days<input id="set-cal" data-draft inputmode="numeric" value="' + esc(s.calendarDays || '7') + '"></label></div>' +
     (hosted ? '<label>Script link (/exec)<input id="set-api" data-draft placeholder="https://script.google.com/macros/s/…/exec" value="' + esc(API.url()) + '"><div class="r"><button class="btn sm" data-act="connect">Connect</button><span class="tiny" id="connect-status">' + (API.url() ? 'Saved. Tap Connect to test.' : 'Needed because this page is hosted outside Apps Script (that is what makes the microphone work). The web app must be deployed with access "Anyone, even anonymous".') + '</span></div></label>' : '<span class="tiny">Voice input is blocked inside the Apps Script page by most browsers. For the microphone, host index.html (Netlify, GitHub Pages) and paste the /exec link there.</span>') +
@@ -1288,7 +1299,7 @@ function planGoal(id) {
 
 /* ============================================================ Voice */
 var rec = null, live = false, listening = false, synthVoice = null;
-function speechLang() { var l = S.settings.language; return l === 'ur' ? 'ur-PK' : 'en-PK'; }
+function speechLang() { var saved = localStorage.getItem('tmc_speech'); if (saved) return saved; return S.settings.language === 'ur' ? 'ur-PK' : 'en-IN'; }
 function startVoice(continuous) {
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) return;
@@ -1328,7 +1339,10 @@ function speak(text) {
   stopSpeaking();
   var u = new SpeechSynthesisUtterance(text.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, ''));
   synthVoice = synthVoice || pickVoice(); if (synthVoice) u.voice = synthVoice; u.lang = speechLang(); u.rate = 1.02;
-  u.onend = updateVoiceUI;
+  var wasLive = live;
+  if (wasLive && rec) { try { rec.onend = null; rec.stop(); } catch (e) { } listening = false; }
+  u.onend = function () { updateVoiceUI(); if (wasLive && live) startVoice(true); };
+  u.onerror = u.onend;
   speechSynthesis.speak(u); updateVoiceUI();
 }
 var voiceReplyWanted = false;
@@ -1440,6 +1454,7 @@ var ACT = {
     if ($('set-model')) obj.geminiModel = $('set-model').value.trim();
     if ($('set-key') && $('set-key').value.trim()) obj.geminiKey = $('set-key').value.trim();
     if ($('set-llmbase')) { obj.llmBase = $('set-llmbase').value.trim(); obj.llmModel = $('set-llmmodel').value.trim(); if ($('set-llmkey').value.trim()) obj.llmKey = $('set-llmkey').value.trim(); }
+    if ($('set-speech')) { localStorage.setItem('tmc_speech', $('set-speech').value); synthVoice = null; }
     if ($('set-api')) localStorage.setItem(LS.api, $('set-api').value.trim());
     save('saveSettings', { settings: obj }).then(function (s) { S.settings = s; toast('Settings saved'); renderSettings(); render(); }).catch(function () { });
   },
