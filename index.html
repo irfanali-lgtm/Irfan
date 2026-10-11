@@ -155,6 +155,18 @@ label.chk input{width:24px;height:24px;min-height:0;padding:0;margin:0;accent-co
 .tools .btn{justify-content:flex-start}
 @media (min-width:600px){.tools{grid-template-columns:repeat(3,1fr)}}
 .tools select,.tools textarea{min-height:44px}
+.details{border-top:1px solid var(--line);padding-top:8px}
+.dhead{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:4px}
+.dsec{margin:8px 0 4px}
+.dsec .dt{font-size:13px;font-weight:600;color:var(--fg2);margin-bottom:2px}
+.drow{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);min-height:44px}
+.drow .t{flex:1;min-width:0;font-size:14px}
+.drow .t a{display:inline-flex;align-items:center;min-height:44px;margin:-10px 0}
+.drow .t .tiny{display:block}
+.drow .acts{flex:none}
+.focus{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--fg2);padding:6px 18px;border-bottom:1px solid var(--line);background:var(--accent-soft)}
+.focus b{font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.focus button{color:var(--accent);font-weight:600;min-height:32px;padding:0 8px}
 .empty{padding:28px 0;color:var(--muted);text-align:center;font-size:15px}
 .empty b{color:var(--fg);font-weight:600;display:block;margin-bottom:4px}
 .block{margin:22px 0 10px}
@@ -347,6 +359,7 @@ label.chk input{width:24px;height:24px;min-height:0;padding:0;margin:0;accent-co
 
 <div class="sheet drawer" id="sh-assistant" role="dialog" aria-label="Assistant">
   <div class="sh"><h2 id="assistant-title">Go</h2><div><button class="iconbtn" data-act="clearchat" aria-label="Clear chat" title="Clear chat">🗑</button><button class="iconbtn" data-act="closeall" aria-label="Close">✕</button></div></div>
+  <div class="focus hide" id="focusbar"><span>About:</span><b id="focus-text"></b><button data-act="unfocus">✕</button></div>
   <div class="sb" id="chat"></div>
   <div class="interim" id="interim"></div>
   <div class="note hide" id="voicenote"></div>
@@ -630,7 +643,7 @@ function esc(s) { return String(s === undefined || s === null ? '' : s).replace(
 </script>
 <script>
 /* ============================================================ State */
-var APP_VERSION = '1.2.0';
+var APP_VERSION = '1.3.0';
 var LS = { state: 'tmc_state_v1', api: 'tmc_api_url', chat: 'tmc_chat_v1', ui: 'tmc_ui_v1' };
 var S = {
   tab: 'plan', horizon: 'day', showDone: false, openItem: null, editItem: null, planSteps: true,
@@ -638,7 +651,7 @@ var S = {
   settings: {}, calendar: { today: [], week: [], all: [] }, mail: [], drive: [], keys: null, today: todayKey(),
   sheetUrl: '', lastSync: 0, loading: false, error: '', version: '',
   repoQ: '', repoType: 'All', repoSort: 'due', openRec: null, editRec: null, newRec: false,
-  chat: [], busy: false, mode: 'gs'
+  chat: [], busy: false, mode: 'gs', details: {}, detailItem: null, focusItem: null
 };
 S.keys = periodKeys(S.today);
 
@@ -666,7 +679,7 @@ function nowIso() { return new Date().toISOString().slice(0, 19); }
 
 /* ============================================================ API layer: google.script.run or JSON API over fetch */
 var ARGS = {
-  getState: [], saveItems: ['items'], upsertItem: ['item'], upsertItems: ['items'], deleteItem: ['id'], toggleDone: ['id', 'done'],
+  getState: ['opts'], itemContext: ['id'], saveItems: ['items'], upsertItem: ['item'], upsertItems: ['items'], deleteItem: ['id'], toggleDone: ['id', 'done'],
   addRecord: ['row'], updateRecord: ['name', 'patch'], deleteRecord: ['name'], getSettings: [], saveSettings: ['settings'],
   ask: ['messages', 'mode', 'extra'], importPlan: ['text'], selfCheck: [], clearDemoData: [], exportBackup: [], importBackup: ['backup'], ping: []
 };
@@ -758,6 +771,7 @@ var DEMO = (function () {
       st = st || build();
       switch (action) {
         case 'getState': return wait(JSON.parse(JSON.stringify(st)));
+        case 'itemContext': { var fi = st.items.filter(function (x) { return x.id === p.id; })[0]; return wait({ item: fi, keywords: ['Nishat'], records: st.repository.slice(0, 1), related: st.items.filter(function (x) { return x.id !== p.id && x.parentId === fi.parentId; }).slice(0, 3).map(function (x) { return { id: x.id, text: x.text, horizon: x.horizon, period: x.period, done: x.done, doneOn: x.doneOn, note: '', parent: '' }; }), mail: st.mail.slice(0, 1).map(function (m) { m = Object.assign({}, m); m.count = 3; return m; }), calendar: st.calendar.all.slice(0, 1).map(function (e) { return { title: e.title, start: e.start, day: e.day, past: false, location: e.location }; }), drive: st.drive }); }
         case 'saveItems': st.items = p.items; return wait({ count: p.items.length });
         case 'upsertItem': case 'upsertItems': { var list = p.items || [p.item]; list.forEach(function (it) { var i = st.items.findIndex(function (x) { return x.id === it.id; }); if (i >= 0) st.items[i] = it; else st.items.push(it); }); return wait({ items: list }); }
         case 'deleteItem': st.items = st.items.filter(function (x) { return x.id !== p.id; }); return wait({ removed: 1 });
@@ -919,14 +933,33 @@ function renderItem(it, byId, byParent, idx, len) {
     html += '<li class="tools">' +
       '<button class="btn sm" data-act="important" data-id="' + it.id + '">' + (it.important ? '★ Important' : '☆ Important') + '</button>' +
       '<button class="btn sm" data-act="repeat" data-id="' + it.id + '">' + (it.repeat ? '↻ Repeats' : 'Repeat every ' + it.horizon) + '</button>' +
+      '<button class="btn sm" data-act="details" data-id="' + it.id + '" aria-expanded="' + (S.detailItem === it.id) + '">' + (S.detailItem === it.id ? 'Hide details' : 'Details') + '</button>' +
       (it.horizon !== 'year' ? '<button class="btn sm" data-act="plan-goal" data-id="' + it.id + '" title="Let Go break this into steps">✦ Plan steps</button>' : '<span></span>') +
       '<select data-act="setparent" data-id="' + it.id + '" aria-label="Parent goal"><option value="">No parent goal</option>' + goals.map(function (g) { return '<option value="' + g.id + '"' + (g.id === it.parentId ? ' selected' : '') + '>' + esc(HSHORT[g.horizon] + ': ' + g.text.slice(0, 50)) + '</option>'; }).join('') + '</select>' +
       '<select data-act="move" data-id="' + it.id + '" aria-label="Move to"><option value="">Move to…</option>' + HORIZONS.filter(function (x) { return x !== it.horizon; }).map(function (x) { return '<option value="' + x + '">' + HLABEL[x] + '</option>'; }).join('') + '</select>' +
       '<div style="display:flex;gap:6px"><button class="btn sm" style="min-width:44px" data-act="reorder" data-id="' + it.id + '" data-dir="-1" ' + (idx === 0 ? 'disabled' : '') + ' aria-label="Move up">↑</button><button class="btn sm" style="min-width:44px" data-act="reorder" data-id="' + it.id + '" data-dir="1" ' + (idx === len - 1 ? 'disabled' : '') + ' aria-label="Move down">↓</button><button class="btn sm danger" data-act="delete" data-id="' + it.id + '" style="flex:1">Delete</button></div>' +
       '<textarea class="wide" id="note-' + it.id + '" data-draft data-act-key="note" data-id="' + it.id + '" placeholder="Add a note (saved when you leave the box)" rows="2" style="min-height:60px">' + esc(it.note) + '</textarea>' +
+      (S.detailItem === it.id ? '<div class="wide details">' + renderDetails(it) + '</div>' : '') +
       '</li>';
   }
   return html;
+}
+
+function renderDetails(it) {
+  var d = S.details[it.id];
+  if (!d) return '<div class="tiny" style="padding:6px 0">Looking for records, mail, meetings and files about this…</div>';
+  if (d.error) return '<div class="tiny" style="color:var(--danger)">' + esc(d.error) + '</div>';
+  var h = '<div class="dhead"><span class="tiny">Related to <b>' + esc(d.keywords.join(', ')) + '</b></span><button class="btn sm primary" data-act="ask-item" data-id="' + it.id + '">Ask Go about this</button></div>';
+  function sec(title, rows, empty) { return '<div class="dsec"><div class="dt">' + title + (rows.length ? ' <span class="tiny">' + rows.length + '</span>' : '') + '</div>' + (rows.length ? rows.join('') : '<div class="tiny">' + empty + '</div>') + '</div>'; }
+  h += sec('Records', d.records.map(function (r) { return '<div class="drow"><div class="t"><span class="pill">' + esc(r.Type || 'Note') + '</span> ' + esc(r.Name) + '<span class="tiny">' + esc([r.Status, r.Contact, r.Due ? 'due ' + r.Due : '', r.Value].filter(Boolean).join(' · ')) + (r.Notes ? ' — ' + esc(r.Notes.slice(0, 90)) : '') + '</span></div><div class="acts"><button class="btn sm" data-act="open-record" data-name="' + esc(r.Name) + '">Open</button></div></div>'; }), 'No matching record. Add one in the Repository to track this.');
+  var mail = Array.isArray(d.mail) ? d.mail : [];
+  h += sec('Mail, last 120 days', mail.map(function (m) { return '<div class="drow"><div class="t"><a href="' + esc(m.link) + '" target="_blank" rel="noopener">' + esc(m.subject) + '</a><span class="tiny">' + esc(m.from.replace(/<.*>/, '').trim()) + ' · ' + fmtShort(m.date.slice(0, 10)) + (m.count > 1 ? ' · ' + m.count + ' messages' : '') + (m.snippet ? ' — ' + esc(m.snippet.slice(0, 100)) : '') + '</span></div><div class="acts"><button class="btn sm" data-act="follow-mail" data-subject="' + esc(m.subject) + '" data-from="' + esc(m.from.replace(/<.*>/, '').trim()) + '">+ Follow up</button></div></div>'; }), d.mail && d.mail.error ? 'Mail not available: ' + esc(d.mail.error) : 'No mail mentions this.');
+  h += sec('Related items', d.related.map(function (x) { return '<div class="drow"><div class="t">' + (x.done ? '<span style="color:var(--accent)">✓</span> ' : '○ ') + esc(x.text) + '<span class="tiny">' + HSHORT[x.horizon] + ' ' + esc(periodLabel(x.horizon, x.period, S.today).split(' · ')[0]) + (x.done && x.doneOn ? ' · done ' + fmtShort(x.doneOn) : '') + (x.parent ? ' · ↑ ' + esc(x.parent.slice(0, 40)) : '') + '</span></div></div>'; }), 'Nothing else linked yet.');
+  var cal = Array.isArray(d.calendar) ? d.calendar : [];
+  h += sec('Meetings, ±30 days', cal.map(function (e) { return '<div class="drow"><div class="t">' + esc(e.title) + '<span class="tiny">' + fmtDay(e.day) + ' ' + hm12(e.start) + (e.past ? ' · past' : '') + (e.location ? ' · ' + esc(e.location) : '') + '</span></div>' + (e.past ? '' : '<div class="acts"><button class="btn sm" data-act="plan-event" data-title="' + esc(e.title) + '">+ Plan</button></div>') + '</div>'; }), 'No meetings mention this.');
+  var files = Array.isArray(d.drive) ? d.drive : [];
+  h += sec('Files', files.map(function (f) { return '<div class="drow"><div class="t"><a href="' + esc(f.url) + '" target="_blank" rel="noopener">' + esc(f.name) + '</a><span class="tiny">updated ' + fmtShort(f.updated.slice(0, 10)) + '</span></div></div>'; }), 'No Drive files match.');
+  return h;
 }
 
 /* ---------- Dashboard ---------- */
@@ -1099,11 +1132,11 @@ function applyState(st) {
   S.mail = st.mail || []; S.drive = st.drive || []; S.sheetUrl = st.sheetUrl || ''; S.version = st.version || S.version;
   S.lastSync = Date.now(); S.error = '';
 }
-function refresh(quiet) {
+function refresh(quiet, force) {
   if (S.loading) return Promise.resolve();
   S.loading = true;
   if (!quiet) $('leftcount').textContent = 'Loading…';
-  return API.call('getState').then(function (st) { applyState(st); render(); })
+  return API.call('getState', { opts: { force: !!force } }).then(function (st) { applyState(st); render(); })
     .catch(function (e) { S.error = friendly(e); render(); })
     .then(function () { S.loading = false; });
 }
@@ -1200,7 +1233,7 @@ function closeConfirm() { $('confirm').dataset.open = 'false'; confirmFn = null;
 
 /* ============================================================ Sheets */
 function openSheet(id) { closeSheets(); $(id).dataset.open = 'true'; $('scrim').dataset.open = 'true'; }
-function closeSheets() { document.querySelectorAll('.sheet').forEach(function (s) { s.dataset.open = 'false'; }); $('scrim').dataset.open = 'false'; closeConfirm(); stopVoice(); }
+function closeSheets() { document.querySelectorAll('.sheet').forEach(function (s) { s.dataset.open = 'false'; }); $('scrim').dataset.open = 'false'; closeConfirm(); stopVoice(); if (S.focusItem && $('sh-assistant')) setFocus(null); }
 
 /* ============================================================ Assistant */
 var CHIPS = ['Plan my day', 'Aaj ka scene?', 'What\'s due this week?', 'Summarise today', 'Draft a follow-up to …', 'Sunao koi joke'];
@@ -1230,6 +1263,12 @@ function renderChat() {
   $('voicenote').textContent = note; $('voicenote').classList.toggle('hide', !note);
   $('mic').disabled = !speech; $('live').disabled = !speech;
 }
+function setFocus(id) {
+  S.focusItem = id;
+  var it = id && findItem(id);
+  $('focusbar').classList.toggle('hide', !it);
+  if (it) $('focus-text').textContent = it.text;
+}
 function pushChat(m) { S.chat.push(m); if (S.chat.length > 60) S.chat = S.chat.slice(-60); renderChat(); saveLocal(); }
 
 function sendMessage(text, mode, extra) {
@@ -1240,8 +1279,10 @@ function sendMessage(text, mode, extra) {
   if (!S.settings.aiReady && !API.isDemo()) { pushChat({ role: 'error', text: 'Add an AI key in Settings to talk to ' + (S.settings.assistantName || 'Go') + '.' }); return Promise.resolve(); }
   S.busy = true; renderChat();
   var history = S.chat.filter(function (m) { return m.role === 'user' || m.role === 'assistant'; }).slice(-12).map(function (m) { return { role: m.role, text: m.text }; });
-  if (mode !== 'chat' && !text) history.push({ role: 'user', text: mode === 'plan' ? 'Plan this goal into steps.' : mode === 'suggest' ? 'Suggest items for ' + HLABEL[extra.horizon].toLowerCase() + '.' : 'Summarise ' + (extra.period || 'today') + '.' });
-  return enqueue(function () { return API.call('ask', { messages: history, mode: mode || 'chat', extra: extra || {} }); })
+  if (mode !== 'chat' && !text) history.push({ role: 'user', text: mode === 'plan' ? 'Plan this goal into steps.' : mode === 'suggest' ? 'Suggest items for ' + HLABEL[extra.horizon].toLowerCase() + '.' : mode === 'brief' ? 'Brief me on this item.' : 'Summarise ' + (extra.period || 'today') + '.' });
+  extra = Object.assign({}, extra || {});
+  if (S.focusItem && !extra.itemId) extra.itemId = S.focusItem;
+  return enqueue(function () { return API.call('ask', { messages: history, mode: mode || 'chat', extra: extra }); })
     .then(function (reply) { S.busy = false; handleReply(reply); })
     .catch(function (e) { S.busy = false; pushChat({ role: 'error', text: friendly(e) }); });
 }
@@ -1441,12 +1482,27 @@ var ACT = {
   delete: function (el) { deleteItemUI(el.dataset.id); },
   'carry-move': function (el) { var it = findItem(el.dataset.id); var before = updateItem(it.id, { period: S.keys[it.horizon], order: itemsOf(it.horizon, S.keys[it.horizon]).length + 1 }); toast('Moved to ' + HLABEL[it.horizon].toLowerCase(), function () { updateItem(it.id, before); }); },
   'carry-done': function (el) { setDone(el.dataset.id, true); },
+  details: function (el) {
+    var id = el.dataset.id;
+    if (S.detailItem === id) { S.detailItem = null; render(); return; }
+    S.detailItem = id; render();
+    if (!S.details[id]) enqueue(function () { return API.call('itemContext', { id: id }); }).then(function (d) { S.details[id] = d; render(); }).catch(function (e) { S.details[id] = { error: friendly(e) }; render(); });
+  },
+  'ask-item': function (el) {
+    var it = findItem(el.dataset.id); if (!it) return;
+    if (!S.settings.aiReady && !API.isDemo()) { toast('Add an AI key in Settings first.'); return; }
+    setFocus(it.id); openSheet('sh-assistant'); renderChat();
+    pushChat({ role: 'sys', text: 'Looking at "' + it.text + '"…' });
+    sendMessage('', 'brief', { itemId: it.id });
+  },
+  'open-record': function (el) { S.tab = 'repository'; S.repoQ = el.dataset.name; S.openRec = el.dataset.name; render(); window.scrollTo(0, 0); },
+  unfocus: function () { setFocus(null); },
   'plan-goal': function (el) { if (!S.settings.aiReady && !API.isDemo()) { toast('Add an AI key in Settings to plan steps.'); openSheet('sh-settings'); renderSettings(); return; } planGoal(el.dataset.id); },
   suggest: function () { if (!S.settings.aiReady && !API.isDemo()) { toast('Add an AI key in Settings to get suggestions.'); openSheet('sh-settings'); renderSettings(); return; } openSheet('sh-assistant'); renderChat(); pushChat({ role: 'sys', text: 'Suggesting items for ' + HLABEL[S.horizon].toLowerCase() + '…' }); sendMessage('', 'suggest', { horizon: S.horizon }); },
   'plan-event': function (el) { var it = addItem('Prepare for ' + el.dataset.title, 'day', { ref: el.dataset.title, source: 'calendar' }); toast('Added "' + it.text.slice(0, 40) + '"', function () { deleteItemUI(it.id); closeToast(); }); },
   'follow-mail': function (el) { var it = addItem('Follow up: ' + el.dataset.subject.replace(/^(re|fwd?):\s*/i, ''), 'day', { ref: el.dataset.from }); toast('Added "' + it.text.slice(0, 40) + '"', function () { deleteItemUI(it.id); closeToast(); }); },
   'rec-plan': function (el) { var r = recByName(el.dataset.name); var h = el.dataset.h || 'day'; var it = addItem((r && r.Type === 'Contact' ? 'Reach out to ' : 'Follow up on ') + el.dataset.name, h, { ref: el.dataset.name }); toast('Added to ' + HLABEL[h].toLowerCase(), function () { deleteItemUI(it.id); closeToast(); }); },
-  refresh: function () { S.error = ''; refresh(); },
+  refresh: function () { S.error = ''; refresh(false, true); },
   settings: function () { renderSettings(); openSheet('sh-settings'); },
   closeall: function () { closeSheets(); },
   savesettings: function () {
