@@ -164,6 +164,8 @@ label.chk input{width:24px;height:24px;min-height:0;padding:0;margin:0;accent-co
 .drow .t a{display:inline-flex;align-items:center;min-height:44px;margin:-10px 0}
 .drow .t .tiny{display:block}
 .drow .acts{flex:none}
+.xm{font-size:13px;color:var(--fg2);padding:6px 0;border-top:1px solid var(--line);white-space:pre-wrap}
+.xm b{font-weight:600;color:var(--fg)}
 .focus{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--fg2);padding:6px 18px;border-bottom:1px solid var(--line);background:var(--accent-soft)}
 .focus b{font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .focus button{color:var(--accent);font-weight:600;min-height:32px;padding:0 8px}
@@ -281,6 +283,14 @@ label.chk input{width:24px;height:24px;min-height:0;padding:0;margin:0;accent-co
 .msg.e{align-self:flex-start;color:var(--danger);background:var(--danger-soft)}
 .msg .conf{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--fg2);margin-top:6px;padding-top:6px;border-top:1px solid var(--line)}
 .msg .conf button{color:var(--accent);font-weight:600;min-height:28px;padding:0 6px}
+.prop{border-top:1px solid var(--line);margin-top:8px;padding-top:8px}
+.prop .pt{font-size:13px;color:var(--fg2);margin-bottom:4px}
+.prop .prow{display:flex;align-items:center;gap:8px;min-height:44px;padding:2px 0;border-bottom:1px solid var(--line);font-size:14px;cursor:pointer}
+.prop .prow input{width:22px;height:22px;min-height:0;padding:0;margin:0;accent-color:var(--accent);flex:none}
+.prop .prow .t{flex:1;min-width:0}
+.prop .prow .t .tiny{display:block}
+.prop .prow select{width:auto;min-height:40px;padding:4px 8px;font-size:16px;flex:none}
+.prop .pa{display:flex;gap:6px;justify-content:flex-end;margin-top:8px}
 .draft{border:1px solid var(--line2);border-radius:var(--radius);padding:10px 12px;margin-top:8px;background:var(--field);color:var(--fg)}
 .draft .s{font-weight:600;margin-bottom:4px}
 .draft .b{white-space:pre-wrap;font-size:14px;color:var(--fg2);max-height:200px;overflow:auto}
@@ -643,7 +653,7 @@ function esc(s) { return String(s === undefined || s === null ? '' : s).replace(
 </script>
 <script>
 /* ============================================================ State */
-var APP_VERSION = '1.3.0';
+var APP_VERSION = '1.4.0';
 var LS = { state: 'tmc_state_v1', api: 'tmc_api_url', chat: 'tmc_chat_v1', ui: 'tmc_ui_v1' };
 var S = {
   tab: 'plan', horizon: 'day', showDone: false, openItem: null, editItem: null, planSteps: true,
@@ -679,7 +689,7 @@ function nowIso() { return new Date().toISOString().slice(0, 19); }
 
 /* ============================================================ API layer: google.script.run or JSON API over fetch */
 var ARGS = {
-  getState: ['opts'], itemContext: ['id'], saveItems: ['items'], upsertItem: ['item'], upsertItems: ['items'], deleteItem: ['id'], toggleDone: ['id', 'done'],
+  getState: ['opts'], itemContext: ['id', 'clientName'], saveItems: ['items'], upsertItem: ['item'], upsertItems: ['items'], deleteItem: ['id'], toggleDone: ['id', 'done'],
   addRecord: ['row'], updateRecord: ['name', 'patch'], deleteRecord: ['name'], getSettings: [], saveSettings: ['settings'],
   ask: ['messages', 'mode', 'extra'], importPlan: ['text'], selfCheck: [], clearDemoData: [], exportBackup: [], importBackup: ['backup'], ping: []
 };
@@ -771,7 +781,7 @@ var DEMO = (function () {
       st = st || build();
       switch (action) {
         case 'getState': return wait(JSON.parse(JSON.stringify(st)));
-        case 'itemContext': { var fi = st.items.filter(function (x) { return x.id === p.id; })[0]; return wait({ item: fi, keywords: ['Nishat'], records: st.repository.slice(0, 1), related: st.items.filter(function (x) { return x.id !== p.id && x.parentId === fi.parentId; }).slice(0, 3).map(function (x) { return { id: x.id, text: x.text, horizon: x.horizon, period: x.period, done: x.done, doneOn: x.doneOn, note: '', parent: '' }; }), mail: st.mail.slice(0, 1).map(function (m) { m = Object.assign({}, m); m.count = 3; return m; }), calendar: st.calendar.all.slice(0, 1).map(function (e) { return { title: e.title, start: e.start, day: e.day, past: false, location: e.location }; }), drive: st.drive }); }
+        case 'itemContext': { var fi = st.items.filter(function (x) { return x.id === p.id; })[0]; var cn = p.clientName || 'Nishat Textiles'; return wait({ item: fi, client: { name: cn, emails: ['ahmed.raza@example.com'], domains: [] }, clients: st.repository.map(function (r) { return r.Name; }), keywords: [cn], records: st.repository.filter(function (r) { return r.Name === cn || r.Contact === 'Ahmed Raza'; }), related: st.items.filter(function (x) { return x.id !== p.id && x.parentId === fi.parentId; }).slice(0, 3).map(function (x) { return { id: x.id, text: x.text, horizon: x.horizon, period: x.period, done: x.done, doneOn: x.doneOn, note: '', parent: '' }; }), mail: [{ id: 'm1', subject: 'Re: S/4HANA licence counts', date: S.today + 'T09:12:00', count: 4, people: ['Ahmed Raza', 'Haseeb'], messages: [{ from: 'Haseeb', date: addDays(S.today, -3) + 'T10:00:00', text: 'Sharing the revised licence counts: 380 professional, 20 developer. Pricing to follow once delivery confirms effort.' }, { from: 'Ahmed Raza', date: S.today + 'T09:12:00', text: 'Thanks. Can we get the revised numbers before Monday? CFO wants to see payment in 4 instalments.' }], link: 'https://mail.google.com/' }], calendar: st.calendar.all.slice(0, 1).map(function (e) { return { title: e.title, start: e.start, day: e.day, past: false, location: e.location }; }), drive: st.drive }); }
         case 'saveItems': st.items = p.items; return wait({ count: p.items.length });
         case 'upsertItem': case 'upsertItems': { var list = p.items || [p.item]; list.forEach(function (it) { var i = st.items.findIndex(function (x) { return x.id === it.id; }); if (i >= 0) st.items[i] = it; else st.items.push(it); }); return wait({ items: list }); }
         case 'deleteItem': st.items = st.items.filter(function (x) { return x.id !== p.id; }); return wait({ removed: 1 });
@@ -781,7 +791,7 @@ var DEMO = (function () {
         case 'deleteRecord': st.repository = st.repository.filter(function (x) { return x.Name !== p.name; }); return wait({ removed: 1 });
         case 'getSettings': return wait(st.settings);
         case 'saveSettings': Object.assign(st.settings, p.settings); if (p.settings.geminiKey) { st.settings.hasGeminiKey = true; st.settings.geminiKeyMasked = '••••' + p.settings.geminiKey.slice(-4); } if (p.settings.llmKey) { st.settings.hasLlmKey = true; st.settings.llmKeyMasked = '••••' + p.settings.llmKey.slice(-4); } st.settings.aiReady = st.settings.provider === 'openai' ? !!st.settings.hasLlmKey : !!st.settings.hasGeminiKey; delete st.settings.geminiKey; delete st.settings.llmKey; return wait(st.settings);
-        case 'ask': return wait({ text: 'Demo mode mein hoon bhai — Gemini yahan connected nahi. Deploy karo, key dalo, phir asli scene. 😄', actions: [] });
+        case 'ask': return wait({ text: 'Demo mode mein hoon bhai — AI yahan connected nahi, par preview aise dikhta hai 👇', actions: [{ type: 'add_items', items: [{ horizon: 'day', text: 'Call Ahmed about licence counts' }, { horizon: 'week', text: 'Send revised Nishat proposal' }] }] });
         case 'importPlan': return wait({ items: heuristicImport(p.text), via: 'heuristic' });
         case 'selfCheck': return wait({ summary: 'Demo mode: nothing to check.', checks: [{ name: 'Demo mode', ok: true, detail: 'Running without a script. Deploy to connect.' }] });
         case 'clearDemoData': { var n = st.items.filter(function (x) { return x.source === 'demo'; }).length; st.items = st.items.filter(function (x) { return x.source !== 'demo'; }); var m = st.repository.length; st.repository = st.repository.filter(function (x) { return !/^Demo row/.test(x.Notes || ''); }); return wait({ items: n, repository: m - st.repository.length }); }
@@ -949,14 +959,20 @@ function renderDetails(it) {
   var d = S.details[it.id];
   if (!d) return '<div class="tiny" style="padding:6px 0">Looking for records, mail, meetings and files about this…</div>';
   if (d.error) return '<div class="tiny" style="color:var(--danger)">' + esc(d.error) + '</div>';
-  var h = '<div class="dhead"><span class="tiny">Related to <b>' + esc(d.keywords.join(', ')) + '</b></span><button class="btn sm primary" data-act="ask-item" data-id="' + it.id + '">Ask Go about this</button></div>';
+  var h = '<div class="dhead"><span class="tiny" style="display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap">' + (d.client ? 'Client: <b>' + esc(d.client.name) + '</b>' : 'No client identified') + '<select data-act="pick-client" data-id="' + it.id + '" aria-label="Choose client" style="width:auto;min-height:40px;padding:2px 8px;font-size:16px"><option value="">' + (d.client ? 'change…' : 'choose a client…') + '</option>' + (d.clients || []).map(function (n) { return '<option value="' + esc(n) + '">' + esc(n) + '</option>'; }).join('') + '</select></span><button class="btn sm primary" data-act="ask-item" data-id="' + it.id + '">Ask Go about this</button></div>';
   function sec(title, rows, empty) { return '<div class="dsec"><div class="dt">' + title + (rows.length ? ' <span class="tiny">' + rows.length + '</span>' : '') + '</div>' + (rows.length ? rows.join('') : '<div class="tiny">' + empty + '</div>') + '</div>'; }
   h += sec('Records', d.records.map(function (r) { return '<div class="drow"><div class="t"><span class="pill">' + esc(r.Type || 'Note') + '</span> ' + esc(r.Name) + '<span class="tiny">' + esc([r.Status, r.Contact, r.Due ? 'due ' + r.Due : '', r.Value].filter(Boolean).join(' · ')) + (r.Notes ? ' — ' + esc(r.Notes.slice(0, 90)) : '') + '</span></div><div class="acts"><button class="btn sm" data-act="open-record" data-name="' + esc(r.Name) + '">Open</button></div></div>'; }), 'No matching record. Add one in the Repository to track this.');
   var mail = Array.isArray(d.mail) ? d.mail : [];
-  h += sec('Mail, last 120 days', mail.map(function (m) { return '<div class="drow"><div class="t"><a href="' + esc(m.link) + '" target="_blank" rel="noopener">' + esc(m.subject) + '</a><span class="tiny">' + esc(m.from.replace(/<.*>/, '').trim()) + ' · ' + fmtShort(m.date.slice(0, 10)) + (m.count > 1 ? ' · ' + m.count + ' messages' : '') + (m.snippet ? ' — ' + esc(m.snippet.slice(0, 100)) : '') + '</span></div><div class="acts"><button class="btn sm" data-act="follow-mail" data-subject="' + esc(m.subject) + '" data-from="' + esc(m.from.replace(/<.*>/, '').trim()) + '">+ Follow up</button></div></div>'; }), d.mail && d.mail.error ? 'Mail not available: ' + esc(d.mail.error) : 'No mail mentions this.');
+  h += sec('Conversations, last 12 months', mail.map(function (m) {
+    var last = (m.messages || [])[m.messages.length - 1] || {};
+    var open = S.openThread === m.id;
+    return '<div class="drow" style="flex-wrap:wrap"><div class="t"><a href="' + esc(m.link) + '" target="_blank" rel="noopener">' + esc(m.subject) + '</a><span class="tiny">' + esc((m.people || []).join(', ')) + ' · ' + fmtShort(m.date.slice(0, 10)) + ' · ' + m.count + (m.count === 1 ? ' message' : ' messages') + '</span>' +
+      (open ? (m.messages || []).map(function (x) { return '<div class="xm"><b>' + esc(x.from) + '</b> <span class="tiny" style="display:inline">' + fmtShort(x.date.slice(0, 10)) + '</span><div>' + esc(x.text) + '</div></div>'; }).join('') : (last.text ? '<span class="tiny">' + esc(last.from) + ': ' + esc(last.text.slice(0, 120)) + '</span>' : '')) +
+      '</div><div class="acts"><button class="btn sm" data-act="thread" data-t="' + m.id + '">' + (open ? 'Less' : 'Read') + '</button><button class="btn sm" data-act="follow-mail" data-subject="' + esc(m.subject) + '" data-from="' + esc((m.people || [])[0] || '') + '">+ Follow up</button></div></div>';
+  }), d.mail && d.mail.error ? 'Mail not available: ' + esc(d.mail.error) : (d.client ? 'No email with ' + esc(d.client.name) + ' in the last 12 months. Add their email to the record to improve matching.' : 'Choose a client to see conversations.'));
   h += sec('Related items', d.related.map(function (x) { return '<div class="drow"><div class="t">' + (x.done ? '<span style="color:var(--accent)">✓</span> ' : '○ ') + esc(x.text) + '<span class="tiny">' + HSHORT[x.horizon] + ' ' + esc(periodLabel(x.horizon, x.period, S.today).split(' · ')[0]) + (x.done && x.doneOn ? ' · done ' + fmtShort(x.doneOn) : '') + (x.parent ? ' · ↑ ' + esc(x.parent.slice(0, 40)) : '') + '</span></div></div>'; }), 'Nothing else linked yet.');
   var cal = Array.isArray(d.calendar) ? d.calendar : [];
-  h += sec('Meetings, ±30 days', cal.map(function (e) { return '<div class="drow"><div class="t">' + esc(e.title) + '<span class="tiny">' + fmtDay(e.day) + ' ' + hm12(e.start) + (e.past ? ' · past' : '') + (e.location ? ' · ' + esc(e.location) : '') + '</span></div>' + (e.past ? '' : '<div class="acts"><button class="btn sm" data-act="plan-event" data-title="' + esc(e.title) + '">+ Plan</button></div>') + '</div>'; }), 'No meetings mention this.');
+  h += sec('Meetings', cal.map(function (e) { return '<div class="drow"><div class="t">' + esc(e.title) + '<span class="tiny">' + fmtDay(e.day) + ' ' + hm12(e.start) + (e.past ? ' · past' : '') + (e.location ? ' · ' + esc(e.location) : '') + '</span></div>' + (e.past ? '' : '<div class="acts"><button class="btn sm" data-act="plan-event" data-title="' + esc(e.title) + '">+ Plan</button></div>') + '</div>'; }), 'No meetings mention this.');
   var files = Array.isArray(d.drive) ? d.drive : [];
   h += sec('Files', files.map(function (f) { return '<div class="drow"><div class="t"><a href="' + esc(f.url) + '" target="_blank" rel="noopener">' + esc(f.name) + '</a><span class="tiny">updated ' + fmtShort(f.updated.slice(0, 10)) + '</span></div></div>'; }), 'No Drive files match.');
   return h;
@@ -1244,7 +1260,23 @@ function renderChat() {
     if (m.role === 'error') return '<div class="msg e">' + esc(m.text) + '</div>';
     if (m.role === 'sys') return '<div class="msg s">' + esc(m.text) + '</div>';
     var h = '<div class="msg a">' + esc(m.text);
-    (m.confirmations || []).forEach(function (c, j) { h += '<div class="conf"><span>✓ ' + esc(c.summary) + '</span>' + (c.undoable && !c.undone ? '<button data-act="chat-undo" data-i="' + i + '" data-j="' + j + '">Undo</button>' : '') + '</div>'; });
+    (m.proposals || []).forEach(function (p, j) {
+      if (p.status === 'skipped') { h += '<div class="conf"><span>Skipped</span></div>'; return; }
+      if (p.status === 'accepted') return;
+      h += '<div class="prop">';
+      if (p.type === 'add_items') {
+        h += '<div class="pt">Go wants to add ' + p.items.length + (p.items.length === 1 ? ' item' : ' items') + ' — tick what you want:</div>';
+        p.items.forEach(function (it, k) {
+          h += '<label class="prow"><input type="checkbox" data-act="prop-check" data-i="' + i + '" data-j="' + j + '" data-k="' + k + '" ' + (it.include !== false ? 'checked' : '') + '><span class="t">' + esc(it.text) + (it.parentKey ? '<span class="tiny">step</span>' : '') + '</span><select data-act="prop-h" data-i="' + i + '" data-j="' + j + '" data-k="' + k + '" aria-label="Horizon">' + HORIZONS.map(function (x) { return '<option value="' + x + '"' + (x === it.horizon ? ' selected' : '') + '>' + HSHORT[x] + '</option>'; }).join('') + '</select></label>';
+        });
+      } else if (p.type === 'add_record') {
+        h += '<div class="pt">Go wants to add a ' + esc((p.row.Type || 'Note').toLowerCase()) + ' to the repository:</div><div class="prow"><span class="t">' + esc(p.row.Name) + '<span class="tiny">' + esc(Object.keys(p.row).filter(function (k) { return k !== 'Name' && p.row[k]; }).map(function (k) { return k + ': ' + p.row[k]; }).join(' · ').slice(0, 160)) + '</span></span></div>';
+      } else {
+        h += '<div class="pt">Go wants to update "' + esc(p.name) + '":</div><div class="prow"><span class="t"><span class="tiny">' + esc(Object.keys(p.patch).map(function (k) { return k + ' → ' + p.patch[k]; }).join(' · ').slice(0, 200)) + '</span></span></div>';
+      }
+      h += '<div class="pa"><button class="btn sm" data-act="prop-skip" data-i="' + i + '" data-j="' + j + '">Skip</button><button class="btn sm primary" data-act="prop-accept" data-i="' + i + '" data-j="' + j + '">' + (p.type === 'add_items' ? 'Add ' + p.items.filter(function (x) { return x.include !== false; }).length : p.type === 'add_record' ? 'Add record' : 'Update') + '</button></div></div>';
+    });
+    (m.confirmations || []).forEach(function (c, j) { h += '<div class="conf"><span>' + (c.undone ? '↩ ' : '✓ ') + esc(c.summary) + '</span>' + (c.undoable && !c.undone ? '<button data-act="chat-undo" data-i="' + i + '" data-j="' + j + '">Undo</button>' : '') + '</div>'; });
     (m.drafts || []).forEach(function (d, j) {
       var gm = 'https://mail.google.com/mail/?view=cm&fs=1&to=' + encodeURIComponent(d.to || '') + '&su=' + encodeURIComponent(d.subject || '') + '&body=' + encodeURIComponent(d.body || '');
       h += '<div class="draft">' + (d.to ? '<div class="tiny">To: ' + esc(d.to) + '</div>' : '') + '<div class="s">' + esc(d.subject) + '</div><div class="b">' + esc(d.body) + '</div><div class="da"><button class="btn sm" data-act="copy-draft" data-i="' + i + '" data-j="' + j + '">Copy</button><a class="btn sm" href="' + gm + '" target="_blank" rel="noopener">Open in Gmail</a></div></div>';
@@ -1287,11 +1319,20 @@ function sendMessage(text, mode, extra) {
     .catch(function (e) { S.busy = false; pushChat({ role: 'error', text: friendly(e) }); });
 }
 
+var PREVIEW_TYPES = { add_items: 1, add_record: 1, update_record: 1 };
 function handleReply(reply) {
-  var res = applyActions(reply.actions || [], { items: S.items, repo: S.repo }, { keys: S.keys, today: S.today, newId: newId, nowIso: nowIso() });
+  var immediate = [], proposals = [];
+  (reply.actions || []).forEach(function (a) {
+    if (PREVIEW_TYPES[a.type]) {
+      if (a.type === 'add_items') { var its = (a.items || []).filter(function (x) { return x && x.text; }).map(function (x) { return Object.assign({ include: true }, x); }); if (its.length) proposals.push({ type: 'add_items', items: its, status: 'open' }); }
+      else if (a.type === 'add_record' && a.row && a.row.Name) proposals.push({ type: 'add_record', row: a.row, status: 'open' });
+      else if (a.type === 'update_record' && a.name && a.patch) proposals.push({ type: 'update_record', name: a.name, patch: a.patch, status: 'open' });
+    } else immediate.push(a);
+  });
+  var res = applyActions(immediate, { items: S.items, repo: S.repo }, { keys: S.keys, today: S.today, newId: newId, nowIso: nowIso() });
   var before = { items: S.items, repo: S.repo };
   S.items = res.items; S.repo = res.repo;
-  var msg = { role: 'assistant', text: reply.text || '', confirmations: [], drafts: [] };
+  var msg = { role: 'assistant', text: reply.text || '', confirmations: [], drafts: [], proposals: proposals };
   res.changes.forEach(function (c) {
     var conf = { summary: c.summary, undoable: true, kind: c.kind, data: c };
     if (c.kind === 'add') bulkAdd(c.ids.map(findItem));
@@ -1320,6 +1361,21 @@ function handleReply(reply) {
       render();
     });
   });
+}
+function acceptProposal(msgI, j) {
+  var m = S.chat[msgI], p = m && m.proposals && m.proposals[j]; if (!p || p.status !== 'open') return;
+  var action = p.type === 'add_items' ? { type: 'add_items', items: p.items.filter(function (x) { return x.include !== false; }) } : p.type === 'add_record' ? { type: 'add_record', row: p.row } : { type: 'update_record', name: p.name, patch: p.patch };
+  if (p.type === 'add_items' && !action.items.length) { toast('Nothing ticked.'); return; }
+  var res = applyActions([action], { items: S.items, repo: S.repo }, { keys: S.keys, today: S.today, newId: newId, nowIso: nowIso() });
+  S.items = res.items; S.repo = res.repo;
+  res.changes.forEach(function (c) {
+    if (c.kind === 'add') bulkAdd(c.ids.map(findItem));
+    else if (c.kind === 'add_record') save('addRecord', { row: c.record });
+    else if (c.kind === 'update_record') save('updateRecord', { name: c.name, patch: c.patch });
+    m.confirmations.push({ summary: c.summary, undoable: true, kind: c.kind, data: c });
+  });
+  p.status = 'accepted';
+  renderChat(); render(); saveLocal();
 }
 function undoChange(msgI, j) {
   var m = S.chat[msgI], c = m && m.confirmations[j]; if (!c || c.undone) return;
@@ -1495,6 +1551,8 @@ var ACT = {
     pushChat({ role: 'sys', text: 'Looking at "' + it.text + '"…' });
     sendMessage('', 'brief', { itemId: it.id });
   },
+  'pick-client': function (el) { var id = el.dataset.id, name = el.value; if (!name) return; delete S.details[id]; render(); enqueue(function () { return API.call('itemContext', { id: id, clientName: name }); }).then(function (d) { S.details[id] = d; render(); }).catch(function (e) { S.details[id] = { error: friendly(e) }; render(); }); },
+  thread: function (el) { S.openThread = S.openThread === el.dataset.t ? null : el.dataset.t; render(); },
   'open-record': function (el) { S.tab = 'repository'; S.repoQ = el.dataset.name; S.openRec = el.dataset.name; render(); window.scrollTo(0, 0); },
   unfocus: function () { setFocus(null); },
   'plan-goal': function (el) { if (!S.settings.aiReady && !API.isDemo()) { toast('Add an AI key in Settings to plan steps.'); openSheet('sh-settings'); renderSettings(); return; } planGoal(el.dataset.id); },
@@ -1562,6 +1620,10 @@ var ACT = {
   live: function () { if (live) { stopVoice(); pushChat({ role: 'sys', text: 'Live mode off.' }); return; } live = true; voiceReplyWanted = true; pushChat({ role: 'sys', text: 'Live mode on — say "done" or "bas" to stop.' }); startVoice(true); },
   stopvoice: function () { stopVoice(); },
   'chat-undo': function (el) { undoChange(Number(el.dataset.i), Number(el.dataset.j)); },
+  'prop-accept': function (el) { acceptProposal(Number(el.dataset.i), Number(el.dataset.j)); },
+  'prop-skip': function (el) { var p = S.chat[Number(el.dataset.i)].proposals[Number(el.dataset.j)]; p.status = 'skipped'; renderChat(); saveLocal(); },
+  'prop-check': function (el) { var p = S.chat[Number(el.dataset.i)].proposals[Number(el.dataset.j)]; p.items[Number(el.dataset.k)].include = el.checked; var b = document.querySelector('[data-act="prop-accept"][data-i="' + el.dataset.i + '"][data-j="' + el.dataset.j + '"]'); if (b) b.textContent = 'Add ' + p.items.filter(function (x) { return x.include !== false; }).length; },
+  'prop-h': function (el) { var p = S.chat[Number(el.dataset.i)].proposals[Number(el.dataset.j)]; p.items[Number(el.dataset.k)].horizon = el.value; },
   'copy-draft': function (el) { var d = S.chat[Number(el.dataset.i)].drafts[Number(el.dataset.j)]; var t = (d.to ? 'To: ' + d.to + '\n' : '') + 'Subject: ' + d.subject + '\n\n' + d.body; (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () { toast('Copied'); }, function () { toast('Copy is not allowed here — select the text instead.'); }); },
   undo: function () { if (undoFn) { var f = undoFn; closeToast(); f(); } },
   toastclose: closeToast,
